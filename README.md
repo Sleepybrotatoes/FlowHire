@@ -2,6 +2,14 @@
 
 FlowHire is a small-team ATS scaffold with a Kanban hiring pipeline.
 
+## Project Layout
+
+This repo uses the workspace layout as the canonical app structure:
+
+- `apps/web` is the Next.js frontend
+- `apps/api` is the Express backend
+- `packages/db` owns the Prisma schema, generated client, and seed data
+
 ## Stack
 
 - Next.js app in `apps/web`
