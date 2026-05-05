@@ -67,6 +67,7 @@ const emptyCandidateForm: CandidateForm = {
 export function PipelineBoard() {
   const [stages, setStages] = useState<PipelineStage[]>(pipelineStages);
   const [jobs, setJobs] = useState<JobSummary[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const [activeApplicationId, setActiveApplicationId] = useState<string | null>(null);
   const [isCandidateFormOpen, setIsCandidateFormOpen] = useState(false);
   const [candidateForm, setCandidateForm] = useState<CandidateForm>(emptyCandidateForm);
@@ -108,6 +109,23 @@ export function PipelineBoard() {
   const applications = useMemo(
     () => stages.flatMap((stage) => stage.applications),
     [stages]
+  );
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+  const filteredStages = useMemo(
+    () =>
+      normalizedSearchQuery
+        ? stages.map((stage) => ({
+            ...stage,
+            applications: stage.applications.filter((application) =>
+              applicationMatchesSearch(application, stage.label, normalizedSearchQuery)
+            )
+          }))
+        : stages,
+    [normalizedSearchQuery, stages]
+  );
+  const visibleApplications = useMemo(
+    () => filteredStages.flatMap((stage) => stage.applications),
+    [filteredStages]
   );
 
   const activeApplication =
@@ -208,8 +226,9 @@ export function PipelineBoard() {
   }
 
   const totalApplications = applications.length;
-  const interviews = stages.find((stage) => stage.id === "INTERVIEW")?.applications.length ?? 0;
-  const offers = stages.find((stage) => stage.id === "OFFER")?.applications.length ?? 0;
+  const visibleApplicationCount = visibleApplications.length;
+  const interviews = filteredStages.find((stage) => stage.id === "INTERVIEW")?.applications.length ?? 0;
+  const offers = filteredStages.find((stage) => stage.id === "OFFER")?.applications.length ?? 0;
 
   return (
     <main className="min-h-screen px-4 py-5 sm:px-6 lg:px-8">
@@ -231,8 +250,20 @@ export function PipelineBoard() {
               <input
                 className="w-full bg-transparent text-sm outline-none placeholder:text-moss/75"
                 placeholder="Search candidates"
+                onChange={(event) => setSearchQuery(event.target.value)}
                 type="search"
+                value={searchQuery}
               />
+              {searchQuery ? (
+                <button
+                  aria-label="Clear candidate search"
+                  className="grid h-7 w-7 place-items-center rounded text-moss hover:bg-ink/5"
+                  onClick={() => setSearchQuery("")}
+                  type="button"
+                >
+                  <X aria-hidden="true" size={15} />
+                </button>
+              ) : null}
             </div>
             <button className="grid h-10 w-10 place-items-center rounded border border-ink/10 bg-white text-ink shadow-sm" aria-label="Filter pipeline">
               <SlidersHorizontal aria-hidden="true" size={18} />
@@ -249,10 +280,16 @@ export function PipelineBoard() {
         </header>
 
         <section className="grid gap-3 sm:grid-cols-3">
-          <Metric label="Applications" value={totalApplications} tone="border-mint bg-white" />
+          <Metric label="Applications" value={visibleApplicationCount} tone="border-mint bg-white" />
           <Metric label="Interviews" value={interviews} tone="border-lavender/30 bg-white" />
           <Metric label="Offers" value={offers} tone="border-saffron/50 bg-white" />
         </section>
+
+        {normalizedSearchQuery ? (
+          <p className="text-sm text-moss">
+            Showing {visibleApplicationCount} of {totalApplications} applications
+          </p>
+        ) : null}
 
         <DndContext
           collisionDetection={closestCenter}
@@ -262,7 +299,7 @@ export function PipelineBoard() {
           onDragEnd={onDragEnd}
         >
           <section className="grid min-h-[560px] gap-3 overflow-x-auto pb-3 lg:grid-cols-5">
-            {stages.map((stage) => (
+            {filteredStages.map((stage) => (
               <StageColumn key={stage.id} stage={stage} onAddCandidate={openCandidateForm} />
             ))}
           </section>
@@ -286,6 +323,28 @@ export function PipelineBoard() {
       ) : null}
     </main>
   );
+}
+
+function applicationMatchesSearch(
+  application: CandidateApplication,
+  stageLabel: string,
+  searchQuery: string
+) {
+  const searchableText = [
+    application.candidate.name,
+    application.candidate.email,
+    application.candidate.headline,
+    application.source,
+    application.job.title,
+    application.job.department,
+    application.job.location,
+    stageLabel
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  return searchableText.includes(searchQuery);
 }
 
 function Metric({ label, value, tone }: { label: string; value: number; tone: string }) {
