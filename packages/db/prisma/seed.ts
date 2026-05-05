@@ -1,4 +1,8 @@
+import { config as loadEnv } from "dotenv";
+import { fileURLToPath } from "node:url";
 import { ApplicationStage, PrismaClient } from "@prisma/client";
+
+loadEnv({ path: fileURLToPath(new URL("../../../.env", import.meta.url)) });
 
 const prisma = new PrismaClient();
 
