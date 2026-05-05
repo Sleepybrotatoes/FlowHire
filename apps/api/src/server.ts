@@ -47,6 +47,76 @@ app.get("/candidates", async (_request, response, next) => {
   }
 });
 
+const createCandidateSchema = z.object({
+  name: z.string().trim().min(1),
+  email: z.string().trim().email().toLowerCase(),
+  phone: z.string().trim().optional(),
+  headline: z.string().trim().optional(),
+  source: z.string().trim().optional(),
+  jobId: z.string().min(1),
+  stage: z.nativeEnum(ApplicationStage).default(ApplicationStage.APPLIED)
+});
+
+app.post("/candidates", async (request, response, next) => {
+  try {
+    const input = createCandidateSchema.parse(request.body);
+
+    const application = await prisma.$transaction(async (tx) => {
+      const job = await tx.job.findUniqueOrThrow({
+        where: { id: input.jobId },
+        select: { id: true, organizationId: true }
+      });
+
+      const candidate = await tx.candidate.upsert({
+        where: {
+          organizationId_email: {
+            organizationId: job.organizationId,
+            email: input.email
+          }
+        },
+        update: {
+          name: input.name,
+          phone: input.phone || null,
+          headline: input.headline || null
+        },
+        create: {
+          name: input.name,
+          email: input.email,
+          phone: input.phone || null,
+          headline: input.headline || null,
+          organizationId: job.organizationId
+        }
+      });
+
+      return tx.application.upsert({
+        where: {
+          candidateId_jobId: {
+            candidateId: candidate.id,
+            jobId: job.id
+          }
+        },
+        update: {
+          stage: input.stage,
+          source: input.source || null
+        },
+        create: {
+          candidateId: candidate.id,
+          jobId: job.id,
+          organizationId: job.organizationId,
+          stage: input.stage,
+          source: input.source || null,
+          autoResponseAt: new Date()
+        },
+        include: { candidate: true, job: true, interviews: true }
+      });
+    });
+
+    response.status(201).json(application);
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.get("/applications", async (_request, response, next) => {
   try {
     const applications = await prisma.application.findMany({

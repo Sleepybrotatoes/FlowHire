@@ -3,12 +3,12 @@ export type StageId = "APPLIED" | "SCREENING" | "INTERVIEW" | "OFFER" | "REJECTE
 export type CandidateApplication = {
   id: string;
   stage: StageId;
-  source: string;
+  source: string | null;
   autoResponseAt: string | null;
   candidate: {
     name: string;
     email: string;
-    headline: string;
+    headline: string | null;
   };
   job: {
     title: string;
