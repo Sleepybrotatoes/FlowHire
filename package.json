@@ -1,0 +1,23 @@
+{
+  "name": "flowhire",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Simple ATS SaaS for small teams with a Kanban hiring pipeline.",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n api,web -c cyan,green \"npm run dev:api\" \"npm run dev:web\"",
+    "dev:api": "npm run dev --workspace @flowhire/api",
+    "dev:web": "npm run dev --workspace @flowhire/web",
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "db:generate": "npm run db:generate --workspace @flowhire/db",
+    "db:migrate": "npm run db:migrate --workspace @flowhire/db",
+    "db:seed": "npm run db:seed --workspace @flowhire/db"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

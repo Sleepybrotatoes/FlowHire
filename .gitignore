@@ -1,1 +1,7 @@
 .env
+.env.local
+.next
+dist
+node_modules
+coverage
+*.log

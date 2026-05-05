@@ -1,0 +1,108 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ApplicationStage {
+  APPLIED
+  SCREENING
+  INTERVIEW
+  OFFER
+  REJECTED
+}
+
+enum JobStatus {
+  DRAFT
+  OPEN
+  CLOSED
+}
+
+enum InterviewStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+model User {
+  id             String       @id @default(cuid())
+  email          String       @unique
+  name           String
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model Organization {
+  id           String        @id @default(cuid())
+  name         String
+  users        User[]
+  jobs         Job[]
+  candidates   Candidate[]
+  applications Application[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Job {
+  id             String        @id @default(cuid())
+  title          String
+  department     String
+  location       String
+  status         JobStatus     @default(OPEN)
+  organizationId String
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  applications   Application[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+model Candidate {
+  id             String        @id @default(cuid())
+  name           String
+  email          String
+  phone          String?
+  headline       String?
+  organizationId String
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  applications   Application[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@unique([organizationId, email])
+}
+
+model Application {
+  id             String           @id @default(cuid())
+  stage          ApplicationStage @default(APPLIED)
+  source         String?
+  notes          String?
+  autoResponseAt DateTime?
+  candidateId    String
+  candidate      Candidate        @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  jobId          String
+  job            Job              @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  organizationId String
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  interviews     Interview[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@unique([candidateId, jobId])
+  @@index([organizationId, stage])
+}
+
+model Interview {
+  id            String          @id @default(cuid())
+  startsAt      DateTime
+  endsAt        DateTime
+  status        InterviewStatus @default(SCHEDULED)
+  applicationId String
+  application   Application     @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+}
