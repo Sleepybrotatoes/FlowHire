@@ -16,12 +16,16 @@ import { CSS } from "@dnd-kit/utilities";
 import {
   BriefcaseBusiness,
   CalendarDays,
+  FileText,
   Loader2,
   Mail,
+  MapPin,
+  Phone,
   Plus,
   Search,
   Send,
   SlidersHorizontal,
+  UserRound,
   X
 } from "lucide-react";
 import clsx from "clsx";
@@ -35,6 +39,14 @@ const stageAccent: Record<StageId, string> = {
   INTERVIEW: "bg-lavender/25 text-ink",
   OFFER: "bg-emerald-100 text-emerald-950",
   REJECTED: "bg-coral/20 text-rose-950"
+};
+
+const stageLabels: Record<StageId, string> = {
+  APPLIED: "Applied",
+  SCREENING: "Screening",
+  INTERVIEW: "Interview",
+  OFFER: "Offer",
+  REJECTED: "Rejected"
 };
 
 type JobSummary = {
@@ -69,6 +81,7 @@ export function PipelineBoard() {
   const [jobs, setJobs] = useState<JobSummary[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeApplicationId, setActiveApplicationId] = useState<string | null>(null);
+  const [selectedApplicationId, setSelectedApplicationId] = useState<string | null>(null);
   const [isCandidateFormOpen, setIsCandidateFormOpen] = useState(false);
   const [candidateForm, setCandidateForm] = useState<CandidateForm>(emptyCandidateForm);
   const [formError, setFormError] = useState<string | null>(null);
@@ -130,6 +143,8 @@ export function PipelineBoard() {
 
   const activeApplication =
     applications.find((application) => application.id === activeApplicationId) ?? null;
+  const selectedApplication =
+    applications.find((application) => application.id === selectedApplicationId) ?? null;
 
   function moveApplication(applicationId: string, nextStageId: StageId) {
     setStages((currentStages) => {
@@ -300,7 +315,12 @@ export function PipelineBoard() {
         >
           <section className="grid min-h-[560px] gap-3 overflow-x-auto pb-3 lg:grid-cols-5">
             {filteredStages.map((stage) => (
-              <StageColumn key={stage.id} stage={stage} onAddCandidate={openCandidateForm} />
+              <StageColumn
+                key={stage.id}
+                stage={stage}
+                onAddCandidate={openCandidateForm}
+                onOpenDetails={setSelectedApplicationId}
+              />
             ))}
           </section>
 
@@ -319,6 +339,13 @@ export function PipelineBoard() {
           onChange={setCandidateForm}
           onClose={() => setIsCandidateFormOpen(false)}
           onSubmit={submitCandidate}
+        />
+      ) : null}
+
+      {selectedApplication ? (
+        <CandidateDetailDrawer
+          application={selectedApplication}
+          onClose={() => setSelectedApplicationId(null)}
         />
       ) : null}
     </main>
@@ -358,10 +385,12 @@ function Metric({ label, value, tone }: { label: string; value: number; tone: st
 
 function StageColumn({
   stage,
-  onAddCandidate
+  onAddCandidate,
+  onOpenDetails
 }: {
   stage: PipelineStage;
   onAddCandidate: (stage: StageId) => void;
+  onOpenDetails: (applicationId: string) => void;
 }) {
   const { isOver, setNodeRef } = useDroppable({ id: stage.id });
 
@@ -392,7 +421,11 @@ function StageColumn({
 
       <div className="flex flex-1 flex-col gap-3">
         {stage.applications.map((application) => (
-          <ApplicationCard key={application.id} application={application} />
+          <ApplicationCard
+            key={application.id}
+            application={application}
+            onOpenDetails={onOpenDetails}
+          />
         ))}
       </div>
     </div>
@@ -401,10 +434,12 @@ function StageColumn({
 
 function ApplicationCard({
   application,
-  isOverlay = false
+  isOverlay = false,
+  onOpenDetails
 }: {
   application: CandidateApplication;
   isOverlay?: boolean;
+  onOpenDetails?: (applicationId: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: application.id
@@ -420,8 +455,9 @@ function ApplicationCard({
       style={style}
       {...listeners}
       {...attributes}
+      onClick={() => onOpenDetails?.(application.id)}
       className={clsx(
-        "rounded border border-ink/10 bg-white p-3 shadow-sm outline-none transition hover:border-ink/25",
+        "cursor-pointer rounded border border-ink/10 bg-white p-3 shadow-sm outline-none transition hover:border-ink/25",
         isDragging && "opacity-40",
         isOverlay && "w-[280px] rotate-1 shadow-panel"
       )}
@@ -454,11 +490,133 @@ function ApplicationCard({
           <CalendarDays aria-hidden="true" size={14} />
           {application.stage === "INTERVIEW" ? "Interview pending" : "Updated today"}
         </span>
-        <button className="grid h-8 w-8 place-items-center rounded bg-mint text-ink" aria-label="Send auto-response">
+        <button
+          className="grid h-8 w-8 place-items-center rounded bg-mint text-ink"
+          aria-label="Send auto-response"
+          onClick={(event) => event.stopPropagation()}
+          type="button"
+        >
           <Send aria-hidden="true" size={15} />
         </button>
       </div>
     </article>
+  );
+}
+
+function CandidateDetailDrawer({
+  application,
+  onClose
+}: {
+  application: CandidateApplication;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end bg-ink/35 backdrop-blur-sm">
+      <aside className="flex h-full w-full max-w-lg flex-col overflow-y-auto border-l border-ink/10 bg-white shadow-panel">
+        <header className="border-b border-ink/10 p-5">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-moss">Candidate details</p>
+              <h2 className="mt-1 text-2xl font-semibold text-ink">{application.candidate.name}</h2>
+              <p className="mt-2 text-sm leading-6 text-moss">
+                {application.candidate.headline || "No headline yet"}
+              </p>
+            </div>
+            <button
+              aria-label="Close candidate details"
+              className="grid h-9 w-9 shrink-0 place-items-center rounded text-moss hover:bg-ink/5"
+              onClick={onClose}
+              type="button"
+            >
+              <X aria-hidden="true" size={18} />
+            </button>
+          </div>
+        </header>
+
+        <div className="flex flex-col gap-5 p-5">
+          <section className="grid gap-3 sm:grid-cols-2">
+            <DetailTile
+              icon={<UserRound aria-hidden="true" size={17} />}
+              label="Stage"
+              value={stageLabels[application.stage]}
+            />
+            <DetailTile
+              icon={<Send aria-hidden="true" size={17} />}
+              label="Auto-response"
+              value={application.autoResponseAt ? "Sent" : "Not sent"}
+            />
+            <DetailTile
+              icon={<BriefcaseBusiness aria-hidden="true" size={17} />}
+              label="Job"
+              value={application.job.title}
+            />
+            <DetailTile
+              icon={<MapPin aria-hidden="true" size={17} />}
+              label="Location"
+              value={application.job.location}
+            />
+          </section>
+
+          <section className="rounded border border-ink/10 bg-white p-4">
+            <h3 className="text-sm font-semibold text-ink">Contact</h3>
+            <div className="mt-3 flex flex-col gap-3 text-sm text-moss">
+              <span className="flex items-center gap-2">
+                <Mail aria-hidden="true" size={16} />
+                {application.candidate.email}
+              </span>
+              <span className="flex items-center gap-2">
+                <Phone aria-hidden="true" size={16} />
+                {application.candidate.phone || "No phone number"}
+              </span>
+            </div>
+          </section>
+
+          <section className="rounded border border-ink/10 bg-white p-4">
+            <h3 className="text-sm font-semibold text-ink">Application</h3>
+            <dl className="mt-3 grid gap-3 text-sm">
+              <div>
+                <dt className="font-medium text-moss">Department</dt>
+                <dd className="mt-1 text-ink">{application.job.department}</dd>
+              </div>
+              <div>
+                <dt className="font-medium text-moss">Source</dt>
+                <dd className="mt-1 text-ink">{application.source || "Direct"}</dd>
+              </div>
+            </dl>
+          </section>
+
+          <section className="rounded border border-ink/10 bg-white p-4">
+            <div className="flex items-center gap-2">
+              <FileText aria-hidden="true" size={17} className="text-moss" />
+              <h3 className="text-sm font-semibold text-ink">Notes</h3>
+            </div>
+            <p className="mt-3 text-sm leading-6 text-moss">
+              {application.notes || "No application notes yet."}
+            </p>
+          </section>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+function DetailTile({
+  icon,
+  label,
+  value
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded border border-ink/10 bg-white p-4">
+      <div className="flex items-center gap-2 text-moss">
+        {icon}
+        <span className="text-xs font-semibold uppercase">{label}</span>
+      </div>
+      <p className="mt-2 text-sm font-semibold text-ink">{value}</p>
+    </div>
   );
 }
 
